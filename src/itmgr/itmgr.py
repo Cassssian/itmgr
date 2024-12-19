@@ -8,10 +8,38 @@
 
 
 import os
-import importlib
 import subprocess
 import sys
-import builtins
+import json
+
+def add(import_name: str, package_name: str) -> None:
+    """
+    Adds a mapping between import name and package name to lib.json
+    
+    Args:
+        import_name: The name used in imports (e.g. 'cv2')
+        package_name: The actual package name for pip (e.g. 'opencv-python')
+    """
+    # Get the directory where itmgr.py is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(current_dir, "lib.json")
+    
+    # Load existing mappings or create new dict
+    if os.path.exists(json_path):
+        with open(json_path, "r") as f:
+            mappings = json.load(f)
+    else:
+        mappings = {}
+    
+    # Add both directional mappings
+    mappings[import_name] = package_name
+    mappings[package_name] = import_name
+    
+    # Save updated mappings
+    with open(json_path, "w") as f:
+        json.dump(mappings, f, indent=4)
+
+    print(f"Lien {import_name} - {package_name} créé !")
 
 
 def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[str], bool | str]]) -> None:
@@ -33,71 +61,103 @@ def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[
     
     for module_tpl in modules:
         module_name, from_imports, alias = module_tpl
-        from_imports = [from_imports] if type(from_imports) == str and type(from_imports) != bool else \
-            [i for i in from_imports] if type(from_imports) == tuple and type(from_imports) != bool \
-                else from_imports
+        original_name = module_name
+        from_imports = (
+            lambda imports: [imports] if (t := type(imports)) == str and t != bool
+            else [i for i in imports] if t == tuple and t != bool
+            else imports
+        )(from_imports)
+        module_name = (
+            lambda name: get_package_name(name) if not (dots := "." in name) 
+            else get_package_name((parts := name.split("."))[0])
+        )(module_name)
 
         try:
             if module_name not in sys.modules:
-                __import__(module_name)   
+                try:
+                    __import__(module_name)
+                except:
+                    __import__(original_name)
+                    module_name = original_name
             
-            module = sys.modules[module_name]
-
-            if alias is False:
-                if len(module_name.split(".")) > 1 and from_imports == True:
-                    alias = module_name.split(".")[-1]
-                elif from_imports != True and from_imports != False:
-                    alias = from_imports  # Utilise le nom du module comme alias par défaut
-                else:
-                    alias = module_name
-
-            if from_imports == True:
-                # Ajouter le module lui-même à l'espace de noms global avec l'alias
-                caller_globals[alias] = module
-
-            elif from_imports != True and from_imports != False:
-                # Importer des éléments spécifiques
-                for name in from_imports:
-                    caller_globals[name] = getattr(module, name)
-            else:
-                raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
-            
-        except ImportError:
-            # Tenter l'installation si le module n'existe pas
-            print(f"{module_name} non trouvé. Installation en cours...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", module_name])
-            
-            # Réessayer l'import après installation
-            try:
-                if module_name not in sys.modules:
-                    __import__(module_name)   
-                
-                module = sys.modules[module_name]
-
-                if alias is False:
-                    if len(module_name.split(".")) > 1 and from_imports == True:
-                        alias = module_name.split(".")[-1]
-                    elif from_imports != True and from_imports != False:
-                        alias = from_imports  # Utilise le nom du module comme alias par défaut
-                    else:
-                        alias = module_name
-
+            if (module := sys.modules[module_name]) and (alias_name := (
+                original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
+                else from_imports if from_imports != True and from_imports != False
+                else module_name
+            )):
                 if from_imports == True:
-                    # Ajouter le module lui-même à l'espace de noms global avec l'alias
-                    caller_globals[alias] = module
-
+                    caller_globals[alias_name] = module
                 elif from_imports != True and from_imports != False:
-                    # Importer des éléments spécifiques
                     for name in from_imports:
                         caller_globals[name] = getattr(module, name)
                 else:
                     raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
+
+
+            
+        except ImportError:
+            # Tenter l'installation si le module n'existe pas
+            print(f"{module_name} non trouvé. Installation en cours...")
+            try:
+                print(f"Installation de {module_name}...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", module_name])
+                print(f"{module_name} installé avec succès.")
+            except:
+                print(f"Erreur lors de l'installation de {module_name}.")
+                print("Vérifiez le nom du module et réessayez.")
+
+                path_lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib.json")
+                if os.path.exists(path_lib):
+                    with open(path_lib, "r") as f:
+                        lib = json.load(f)
+                        if module_name in (mappings := json.load(open(path_lib))):
+                            try:
+                                if (result := input("Un lien a été trouvé avec le nom du module, souhaitez-vous réessayer avec le nom associé ? (y/n) : ")).lower() == 'y':
+                                    print(f"Installation de {mappings[module_name]}...")
+                                    subprocess.check_call([sys.executable, "-m", "pip", "install", mappings[module_name]])
+                                    print(f"{mappings[module_name]} installé avec succès.")
+                                else:
+                                    print("Annulé.")
+                            except:
+                                print("Erreur lors de l'installation de {mappings[module_name]}.")
+                                print("Installation impossible.")
+                                print("Veuillez installer manuellement le module.")
+            
+            # Réessayer l'import après installation
+            try:
+                if module_name not in sys.modules:
+                    try:
+                        __import__(module_name)
+                    except:
+                        __import__(original_name)
+                        module_name = original_name
+                
+                if (module := sys.modules[module_name]) and (alias_name := (
+                    original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
+                    else from_imports if from_imports != True and from_imports != False
+                    else module_name
+                )):
+                    if from_imports == True:
+                        caller_globals[alias_name] = module
+                    elif from_imports != True and from_imports != False:
+                        for name in from_imports:
+                            caller_globals[name] = getattr(module, name)
+                    else:
+                        raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
+                    
             except ImportError:
                 print(f"Erreur : échec de l'installation de {module_name}")
         except Exception as e:
             print(f"Erreur lors de l'importation de {module_name}: {str(e)}")
 
 
+def get_package_name(import_name: str) -> str:
+    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib.json")
+    return (lambda: mappings[import_name] 
+            if import_name in (mappings := json.load(open(json_path))) 
+            else import_name)() if os.path.exists(json_path) else import_name
+
+                
 def install(*modules) -> None:
     """
     Installe des bibliothèques Python en utilisant pip.
@@ -109,8 +169,27 @@ def install(*modules) -> None:
             print(f"Installation de {module}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", module])
             print(f"{module} installé avec succès.")
-        except Exception as e:
-            print(f"Erreur lors de l'installation de {module}: {str(e)}")
+        except:
+            print(f"Erreur lors de l'installation de {module}.")
+            print("Vérifiez le nom du module et réessayez.")
+
+            path_lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib.json")
+            if os.path.exists(path_lib):
+                with open(path_lib, "r") as f:
+                    lib = json.load(f)
+                    if module in (mappings := json.load(open(path_lib))):
+                        try:
+                            if (result := input("Un lien a été trouvé avec le nom du module, souhaitez-vous réessayer avec le nom associé ? (y/n) : ")).lower() == 'y':
+                                print(f"Installation de {mappings[module]}...")
+                                subprocess.check_call([sys.executable, "-m", "pip", "install", mappings[module]])
+                                print(f"{mappings[module]} installé avec succès.")
+                            else:
+                                print("Annulé.")
+                        except:
+                            print("Erreur lors de l'installation de {mappings[module]}.")
+                            print("Installation impossible.")
+                            print("Veuillez installer manuellement le module.")
+
 
 
 def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool | str]) -> None:
@@ -128,37 +207,46 @@ def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool 
 
     for module_tpl in modules:
         module_name, from_imports, alias = module_tpl
-        from_imports = [from_imports] if type(from_imports) == str and type(from_imports) != bool else \
-            [i for i in from_imports] if type(from_imports) == tuple and type(from_imports) != bool \
-                else from_imports
+        original_name = module_name
+        from_imports = (
+            lambda imports: [imports] if (t := type(imports)) == str and t != bool
+            else [i for i in imports] if t == tuple and t != bool
+            else imports
+        )(from_imports)
+
+
+        module_name = (lambda name: get_package_name(name) 
+              if "." not in name 
+              else get_package_name(name.split(".")[0]))(module_name)
+
 
         try:
             if module_name not in sys.modules:
-                __import__(module_name)                
+                try:
+                    __import__(module_name)
+                except:
+                    __import__(original_name)
+                    module_name = original_name
 
-            module = sys.modules[module_name]
-            
-            if alias is False:
-                if len(module_name.split(".")) > 1 and from_imports == True:
-                    alias = module_name.split(".")[-1]
+            if (module := sys.modules[module_name]) and (alias_name := (
+                original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
+                else from_imports if from_imports != True and from_imports != False
+                else module_name
+            )):
+                if from_imports == True:
+                    caller_globals[alias_name] = module
                 elif from_imports != True and from_imports != False:
-                    alias = from_imports  # Utilise le nom du module comme alias par défaut
+                    for name in from_imports:
+                        caller_globals[name] = getattr(module, name)
                 else:
-                    alias = module_name
+                    raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
 
-            if from_imports == True:
-                # Ajouter le module lui-même à l'espace de noms global avec l'alias
-                caller_globals[alias] = module
 
-            elif from_imports != True and from_imports != False:
-                # Importer des éléments spécifiques
-                for name in from_imports:
-                    caller_globals[name] = getattr(module, name)
-            else:
-                raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
 
         except Exception as e:
             print(f"Erreur lors de l'importation de {module_name}: {str(e)}")
+            print("Vérifiez le nom du module et réessayez.")
+            print("Vérifiez si le module est installé.")
 
 
 def uninstall(*modules) -> None:
@@ -168,9 +256,26 @@ def uninstall(*modules) -> None:
     - modules : modules à désinstaller.
     """
     for module in modules:
-        print(f"Désinstallation de {module}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", module])
-        print(f"{module} désinstallé avec succès.")
+        original_module_name = module
+        module = get_package_name(module)
+        try:
+            try:
+                __import__(module)
+            except ImportError:
+                module = original_module_name
+                __import__(original_module_name)
+                
+            # If module exists, try to uninstall it
+            print(f"Désinstallation de {module}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", module])
+            print(f"{module} désinstallé avec succès.")
+            
+        except ImportError:
+            print(f"Le module {module} n'est pas installé ou le nom spécifié est incorrect.")
+            
+        except subprocess.CalledProcessError:
+            print(f"Erreur lors de la désinstallation de {module}.")
+            print("Veuillez désinstaller manuellement le module.")
 
 
 def remove_module(*modules) -> None:
@@ -190,82 +295,54 @@ def remove_module(*modules) -> None:
     
     for module_tpl in modules:
         module_name, from_imports, alias = module_tpl
-        from_imports = [from_imports] if type(from_imports) == str and type(from_imports) != bool else \
-            [i for i in from_imports] if type(from_imports) == tuple and type(from_imports) != bool \
-                else from_imports
+        original_name = module_name
+        from_imports = (
+            lambda imports: [imports] if (t := type(imports)) == str and t != bool
+            else [i for i in imports] if t == tuple and t != bool
+            else imports
+        )(from_imports)
+
     
-    try:
+        module_name = (lambda name: get_package_name(name) 
+              if "." not in name 
+              else get_package_name(name.split(".")[0]))(module_name)
+
+    
+        try:
             if module_name not in sys.modules:
                 __import__(module_name)   
             
             module = sys.modules[module_name]
 
-            if alias is False:
-                if len(module_name.split(".")) > 1 and from_imports == True:
-                    alias = module_name.split(".")[-1]
+            if (alias_name := (
+                original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
+                else from_imports if from_imports != True and from_imports != False
+                else original_name
+            )):
+                if from_imports == True:
+                    del caller_globals[alias_name]
                 elif from_imports != True and from_imports != False:
-                    alias = from_imports  # Utilise le nom du module comme alias par défaut
+                    for name in from_imports:
+                        del caller_globals[name]
                 else:
-                    alias = module_name
-
-            if from_imports == True:
-                # Ajouter le module lui-même à l'espace de noms global avec l'alias
-                 del caller_globals[alias]
-
-            elif from_imports != True and from_imports != False:
-                # Importer des éléments spécifiques
-                for name in from_imports:
-                    del caller_globals[name]
-            else:
-                raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
+                    raise ValueError("La seconde valeur doit être True ou une liste de noms d'attributs et pas False.")
 
             print(f"{module} enlevé avec succès.")
-    except Exception as e:
-        print(f"Erreur : {module} n'est pas installé et ne peut pas être enlevé. \n{e}")
-        result = input("Voulez-vous l'installer ? (y/n) : ")
-        install(module) if result.lower() == 'y' else print("Annulé.")
 
-      
+        except Exception as e:
+            print(f"Erreur : {module} n'est pas installé et ne peut pas être enlevé. \n{e}")
+            if (result := input("Voulez-vous l'installer ? (y/n) : ")).lower() == 'y':
+                install(module)
+            else:
+                print("Annulé.")
+
+
+
+
+def main():
+    if len(sys.argv) == 4 and sys.argv[1] == "add":
+        add(sys.argv[2], sys.argv[3])
+        print(f"Successfully mapped {sys.argv[2]} to {sys.argv[3]}")
+
 if __name__ == "__main__":
-
-    # install_and_import(('PIL.Image', True, 'Image'), ('customtkinter', True, 'ctk'), ('pathlib', 'Path', False), ('os', True, 'os'),
-    #                   (colorsys, True, False))
-
-
-    # image = Image.new('RGB', (100, 100), color='red')
-    # image.show()  # Affiche l'image rouge
-    # path = Path(__file__).parent.absolute() / "img.png"
-    # image.save(path)
-
-    # # Créer une nouvelle image (en mode RGB, 100x100 pixels, couleur rouge)
-    # root = ctk.CTk()
-    # root.geometry("300x200")
-    # root.title("Hello World")
-    # label = ctk.CTkLabel(root, text="Hello World")
-    # label.pack()
-    # root.mainloop()
-
-    # os.system(f"start {path}")
-
-    importation(("customtkinter", True, "ctk"), ("colorsys", True, False))
-
-    color_window = ctk.CTkToplevel()
-    color_window.title("Choisir une couleur")
-    color_window.geometry("800x500")
-    color_window.resizable(False, False)
-
-     # Organisation générale avec Frames
-    main_frame = ctk.CTkFrame(color_window)
-    main_frame.pack(padx=10, pady=10, fill="both")
-
-    left_frame = ctk.CTkFrame(main_frame)
-    left_frame.grid(row=0, column=0, sticky="n")
-
-    canvas = ctk.CTkCanvas(left_frame, width=600, height=200)
-    for x in range(600):
-        for y in range(200):
-            hue = x / 600
-            sat = y / 200
-            r, g, b = colorsys.hls_to_rgb(hue, 0.5, sat)
-            color = f'#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}'
-            canvas.create_line(x, y, x + 1, y, fill=color)    
+    main()

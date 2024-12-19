@@ -1,0 +1,18 @@
+{
+    "opencv-python": "cv2",
+    "cv2": "opencv-python",
+    "Pillow": "PIL",
+    "PIL": "Pillow",
+    "Flask-SQLAlchemy": "flask_sqlalchemy",
+    "flask_sqlalchemy": "Flask-SQLAlchemy",
+    "pyserial": "serial",
+    "serial": "pyserial",
+    "beautifulsoup4": "bs4",
+    "bs4": "beautifulsoup4",
+    "scikit-learn": "sklearn",
+    "sklearn": "scikit-learn",
+    "matplotlib-lib": "matplotlib",
+    "matplotlib": "matplotlib-lib",
+    "pyqt5": "PyQt5",
+    "PyQt5": "pyqt5"
+}

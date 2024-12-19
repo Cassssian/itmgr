@@ -7,13 +7,18 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="itmgr",
-    version="1.0.2",
+    version="1.0.3.2",
     description=" An import manager that allow you to manage easily your importations in your project",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Casssian/itmgr",
     author="Cassssian",
     author_email="enzod1604@gmail.com",
+    entry_points={
+        'console_scripts': [
+            'itmgr=itmgr.itmgr:main',
+        ],
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -38,7 +43,6 @@ setup(
         "pip>=21.0",
         "setuptools>=61.0",
         "wheel>=0.37.0",
-        "importlib-metadata>=4.0",
         "typing-extensions>=4.0"
     ],
 

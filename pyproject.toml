@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "itmgr"
 
-version = "1.0.2" # REQUIRED, although can be dynamic
+version = "1.0.3.2" # REQUIRED, although can be dynamic
 
 description = "An import manager that allow you to manage easily your importations in your project"
 
@@ -58,7 +58,6 @@ dependencies = [
     "pip>=21.0",
     "setuptools>=61.0",
     "wheel>=0.37.0",
-    "importlib-metadata>=4.0",
     "typing-extensions>=4.0"
 ]
 
@@ -73,13 +72,6 @@ dev = [
     "flake8>=4.0"
 ]
 
-test = [
-    "pytest",
-    "pytest-cov",
-    "coverage"
-]
-
-
 [project.urls]
 "Homepage" = "https://github.com/Cassssian/itmgr"
 "Bug Reports" = "https://github.com/Cassssian/itmgr"
@@ -90,6 +82,10 @@ test = [
 "Author" = "https://github.com/Cassssian"
 "Repository" = "https://github.com/Cassssian/itmgr.git"
 "Issues" = "https://github.com/Cassssian/itmgr/issues"
+
+[project.scripts]
+itmgr = "itmgr.itmgr:main"
+
 
 
 [tool.setuptools]

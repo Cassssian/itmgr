@@ -14,6 +14,12 @@ from itmgr import * #Or use : install_and_import, importation, install, uninstal
 # And write your importations and your code below
 ```
 
+You can also add link between libs for importation and installations by using this line in your console : 
+```bash
+itmgr add lib_name link_to_install
+```
+
+
 # Contributing
 The contributions are welcome ! You can contribute by adding new features, fixing bugs, improving the documentation, etc.
 
