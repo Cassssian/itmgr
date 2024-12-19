@@ -83,7 +83,7 @@ def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[
             if (module := sys.modules[module_name]) and (alias_name := (
                 original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
                 else from_imports if from_imports != True and from_imports != False
-                else module_name
+                else alias if alias != False else module_name
             )):
                 if from_imports == True:
                     caller_globals[alias_name] = module
