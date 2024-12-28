@@ -1,6 +1,4 @@
 {
-    "opencv-python": "cv2",
-    "cv2": "opencv-python",
     "Pillow": "PIL",
     "PIL": "Pillow",
     "Flask-SQLAlchemy": "flask_sqlalchemy",
@@ -14,5 +12,7 @@
     "matplotlib-lib": "matplotlib",
     "matplotlib": "matplotlib-lib",
     "pyqt5": "PyQt5",
-    "PyQt5": "pyqt5"
+    "PyQt5": "pyqt5",
+    "cv2": "opencv-python",
+    "opencv-python": "cv2"
 }
