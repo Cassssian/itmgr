@@ -81,25 +81,28 @@ def delete(import_name: str) -> None:
 
 
 
-def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[str], bool | str]]) -> None:
+def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[str], bool | str], bool]) -> None:
     """
     Installe et importe des bibliothèques selon les instructions fournies.
 
     `modules`: Liste de tuples contenant les informations pour chaque bibliothèque.
     
-    Chaque tuple doit être de la forme : (nom_installation, mode_importation, alias ou False)
+    Chaque tuple doit être de la forme : (nom_installation, mode_importation, alias ou False, True ou False)
 
         - nom_installation : nom pour pip install
 
         - mode_importation : True pour "from module import attr", str ou list[str] ou tuple[str] pour "from module import attr"
 
         - alias : False pour pas d'alias ou str pour alias avec "as ..."
+
+        - mise à jour ou non (True ou False)
     """
     
     caller_globals = sys._getframe(1).f_globals
     
     for module_tpl in modules:
-        module_name, from_imports, alias = module_tpl
+        module_name, from_imports, alias, maj = module_tpl if len(module_tpl) == 4 else module_name, from_imports, alias = module_tpl
+        maj = True if not len(module_tpl) == 4 else maj
         original_name = module_name
         from_imports = (
             lambda imports: [imports] if (t := type(imports)) == str and t != bool
@@ -121,24 +124,25 @@ def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[
                     __import__(original_name)
                     module_name = original_name
 
-            try :
-                if not __check_latest_version__(version_name, _code = True)['is_latest']:
-                        if (result := input("\x1b[38;5;116mUne mise à jour a été trouvée, souhaitez-vous l'installer ? (y/n) : \x1b[0m")).lower() == 'y':
-                            subprocess.check_call([sys.executable, "-m", "pip", "install", version_name, "--upgrade"])
-                        else: 
-                            print("\x1b[38;5;196mLa mise à jour n'a pas été effectuée.\x1b[0m")
-            except:
-                    print("\x1b[38;5;196m Une errreur est survenue\x1b[0m")
-                    version_name = original_name.split(".")[0]
-                    try:
-                            if (result := input("\x1b[38;5;116mUn lien a été trouvé, souhaitez-vous réessayer ? (y/n) : \x1b[0m")).lower() == 'y':
+            if maj :
+                try :
+                    if not __check_latest_version__(version_name, _code = True)['is_latest']:
+                            if (result := input("\x1b[38;5;116mUne mise à jour a été trouvée, souhaitez-vous l'installer ? (y/n) : \x1b[0m")).lower() == 'y':
                                 subprocess.check_call([sys.executable, "-m", "pip", "install", version_name, "--upgrade"])
                             else: 
                                 print("\x1b[38;5;196mLa mise à jour n'a pas été effectuée.\x1b[0m")
-                    except:
-                        print("\x1b[38;5;196m Une errreur est survenue, impossible d'effectuer la mise à jour\x1b[0m")
-                        print("\x1b[38;5;196m Veuillez la faire manuellement\x1b[0m")
-            
+                except:
+                        print("\x1b[38;5;196m Une errreur est survenue\x1b[0m")
+                        version_name = original_name.split(".")[0]
+                        try:
+                                if (result := input("\x1b[38;5;116mUn lien a été trouvé, souhaitez-vous réessayer ? (y/n) : \x1b[0m")).lower() == 'y':
+                                    subprocess.check_call([sys.executable, "-m", "pip", "install", version_name, "--upgrade"])
+                                else: 
+                                    print("\x1b[38;5;196mLa mise à jour n'a pas été effectuée.\x1b[0m")
+                        except:
+                            print("\x1b[38;5;196m Une errreur est survenue, impossible d'effectuer la mise à jour\x1b[0m")
+                            print("\x1b[38;5;196m Veuillez la faire manuellement\x1b[0m")
+                
             if (module := sys.modules[module_name]) and (alias_name := (
                 original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
                 else from_imports if from_imports != True and from_imports != False
@@ -247,7 +251,7 @@ def install(*modules) -> None:
 
 
 
-def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool | str]) -> None:
+def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool | str, bool]) -> None:
     """
     Importe des bibliothèques Python.
     -------------------
@@ -256,12 +260,14 @@ def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool 
         - module : nom du module à importer
         - mode : True pour "import module", str ou list[str] ou tuple[str] pour "from module import attr"
         - alias : False pour pas d'alias ou str pour alias avec "as ..."
+        - mise à jour ou non
     """
     caller_globals = sys._getframe(1).f_globals
 
 
     for module_tpl in modules:
-        module_name, from_imports, alias = module_tpl
+        module_name, from_imports, alias, maj = module_tpl if len(module_tpl) == 4 else module_name, from_imports, alias = module_tpl
+        maj = True if not len(module_tpl) == 4 else maj
         original_name = module_name
         from_imports = (
             lambda imports: [imports] if (t := type(imports)) == str and t != bool
@@ -286,6 +292,7 @@ def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool 
                     __import__(original_name)
                     module_name = original_name
 
+            if maj:
                 if not __check_latest_version__(version_name, _code = True)['is_latest']:
                     if (result := input("\x1b[38;5;116mUne mise à jour a été trouvée, souhaitez-vous l'installer ? (y/n) : \x1b[0m")).lower() == 'y':
                         subprocess.check_call([sys.executable, "-m", "pip", "install", version_name, "--upgrade"])
