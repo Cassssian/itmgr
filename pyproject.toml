@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "itmgr"
 
-version = "1.0.4.2" # REQUIRED, although can be dynamic
+version = "1.0.4.3.2" # REQUIRED, although can be dynamic
 
 description = "An import manager that allow you to manage easily your importations in your project"
 

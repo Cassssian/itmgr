@@ -101,8 +101,12 @@ def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[
     caller_globals = sys._getframe(1).f_globals
     
     for module_tpl in modules:
-        module_name, from_imports, alias, maj = module_tpl if len(module_tpl) == 4 else module_name, from_imports, alias = module_tpl
-        maj = True if not len(module_tpl) == 4 else maj
+        if len(module_tpl) ==4:
+            module_name, from_imports, alias, maj = module_tpl
+        else:
+            module_name, from_imports, alias = module_tpl
+            maj = False
+            
         original_name = module_name
         from_imports = (
             lambda imports: [imports] if (t := type(imports)) == str and t != bool
@@ -196,7 +200,7 @@ def install_and_import(*modules: list[tuple[str, bool | list[str] | str | tuple[
                 if (module := sys.modules[module_name]) and (alias_name := (
                     original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
                     else from_imports if from_imports != True and from_imports != False
-                    else module_name
+                    else alias if alias != False else module_name
                 )):
                     if from_imports == True:
                         caller_globals[alias_name] = module
@@ -266,8 +270,12 @@ def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool 
 
 
     for module_tpl in modules:
-        module_name, from_imports, alias, maj = module_tpl if len(module_tpl) == 4 else module_name, from_imports, alias = module_tpl
-        maj = True if not len(module_tpl) == 4 else maj
+        if len(module_tpl) ==4:
+            module_name, from_imports, alias, maj = module_tpl
+        else:
+            module_name, from_imports, alias = module_tpl
+            maj = False
+            
         original_name = module_name
         from_imports = (
             lambda imports: [imports] if (t := type(imports)) == str and t != bool
@@ -302,7 +310,7 @@ def importation(*modules : tuple[str, bool | list[str] | str | tuple[str], bool 
             if (module := sys.modules[module_name]) and (alias_name := (
                 original_name.split(".")[-1] if len(original_name.split(".")) > 1 and from_imports == True
                 else from_imports if from_imports != True and from_imports != False
-                else module_name
+                else alias if alias != False else module_name
             )):
                 if from_imports == True:
                     caller_globals[alias_name] = module

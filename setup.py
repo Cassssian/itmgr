@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="itmgr",
-    version="1.0.4.2",
+    version="1.0.4.3.2",
     description=" An import manager that allow you to manage easily your importations in your project",
     long_description=long_description,
     long_description_content_type="text/markdown",
